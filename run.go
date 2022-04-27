@@ -62,7 +62,6 @@ func randomString(length int) string {
 func save(htmlString string, fileName string, outputDir string) {
 	createDir(outputDir)
 	htmlDir := outputDir + "/" + fileName
-	fmt.Println(htmlDir)
 	htmlFile, _ := os.Create(htmlDir)
 	defer htmlFile.Close()
 	htmlFile.WriteString(htmlString)
@@ -100,6 +99,11 @@ func main() {
 	// ctxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Create custom directory that ties output to time
+	createDir(outDir)
+	outDir=outDir+"/"+time.Now().Format("2006-01-02-15:04:05")
+	createDir(outDir)
+
 	// Collect book detail view url's on each of the search pages
 	for cur_page_counter <= max_page_counter {
 		// interate the page
@@ -107,8 +111,6 @@ func main() {
 		fmt.Printf("Page %d\n", cur_page_counter)
 		// create temp url for the page of intrest in this iteration
 		search_url := "https://librivox.org/search?primary_key=1&search_category=language&search_page=" + strconv.FormatInt(int64(cur_page_counter), 10) + "&search_form=get_results"
-
-		fmt.Printf("%s\n", search_url)
 		
 		// Scrape all book open buttons on this page.
 		err := chromedp.Run(ctxt, collectBookUrls(search_url, &nodes))
@@ -117,51 +119,49 @@ func main() {
 		}
 
 		// Collect each href for the scaped button
-		for _, n := range nodes {
+		for i, n := range nodes {
 			book_pages = append(book_pages, n.AttributeValue("href"))
+			fmt.Printf("Book: %d\t", i)
+			scrapeBook(n.AttributeValue("href"), outDir, ctxt)
+			// fmt.Println("\t...Complete")
 		}
 
 		fmt.Printf("Complete %d\n", cur_page_counter)
 	}
 
-	// Create custom directory that ties output to time
-	createDir(outDir)
-	outDir=outDir+"/"+time.Now().Format("2006-01-02-15:04:05")
-	createDir(outDir)
+	// err := chromedp.Shutdown(ctxt)
 
-	// Collect book information for each detail page and save it to a file, and save the audio zip.
-	for _, book_url := range book_pages {
-		fmt.Println(book_url)
-		// Stores the book
-		b := Book{}
-		// Scape the site for data
-		err := chromedp.Run(ctxt, collectBookData(book_url, &b.Title, &b.Author, &b.Reader, &b.Language, &b.Genre, &b.Audio_file_count, &b.Audio_download_url))
-		if err != nil {
-			fmt.Println(err)
-		}
+	// err = chromedp.Wait()
+}
 
-		// Format struct as json string
-		j, err := json.Marshal(&b)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
 
-		// Save the meta data about the book
-		tempDir := outDir+"/"+randomString(16)
-		save(string(j), "meta.json", tempDir)
-			
-		// Download the zip file that holds the audio (leave compressed so that it is more mobile)
-		err = DownloadFile(tempDir+"audio.zip", b.Audio_download_url)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("Complete %s\n", b.Title)
+// Collect book information for each detail page and save it to a file, and save the audio zip.
+func scrapeBook(book_url string, outDir string, ctxt context.Context) {
+	// Stores the book
+	b := Book{}
+	// Scape the site for data
+	err := chromedp.Run(ctxt, collectBookData(book_url, &b.Title, &b.Author, &b.Reader, &b.Language, &b.Genre, &b.Audio_file_count, &b.Audio_download_url))
+	if err != nil {
+		fmt.Println(err)
 	}
 
-	err = chromedp.Shutdown(ctxt)
+	// Format struct as json string
+	j, err := json.Marshal(&b)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-	err = chromedp.Wait()
+	// Save the meta data about the book
+	tempDir := outDir+"/"+randomString(16)
+	save(string(j), "meta.json", tempDir)
+		
+	// Download the zip file that holds the audio (leave compressed so that it is more mobile)
+	err = DownloadFile(tempDir+"/"+"audio.zip", b.Audio_download_url)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Complete %s\n", b.Title)
 }
 
 // Collect the url of the detail view page of each book.
