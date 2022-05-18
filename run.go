@@ -106,6 +106,7 @@ func main() {
 
 	// Collect book detail view url's on each of the search pages
 	for cur_page_counter <= max_page_counter {
+		time.Sleep(2)
 		// interate the page
 		cur_page_counter++
 		fmt.Printf("Start Page %d\n", cur_page_counter)
@@ -122,6 +123,7 @@ func main() {
 		for i, n := range nodes {
 			book_pages = append(book_pages, n.AttributeValue("href"))
 			fmt.Printf("Book: %d\t", i)
+			time.Sleep(5)
 			scrapeBook(n.AttributeValue("href"), outDir, ctxt)
 			// fmt.Println("\t...Complete")
 		}
@@ -137,6 +139,7 @@ func main() {
 
 // Collect book information for each detail page and save it to a file, and save the audio zip.
 func scrapeBook(book_url string, outDir string, ctxt context.Context) {
+    fmt.Println("Time: ", time.Now().Format("2006-01-02 15:04:05"))
 	// Stores the book
 	b := Book{}
 	// Scape the site for data
@@ -159,8 +162,9 @@ func scrapeBook(book_url string, outDir string, ctxt context.Context) {
 	// Download the zip file that holds the audio (leave compressed so that it is more mobile)
 	err = DownloadFile(tempDir+"/"+"audio.zip", b.Audio_download_url)
 	if err != nil {
-		panic(err)
-	}
+		fmt.Println(err)
+        return
+    }
 	fmt.Printf("Complete %s\n", b.Title)
 }
 
