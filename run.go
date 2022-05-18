@@ -108,7 +108,7 @@ func main() {
 	for cur_page_counter <= max_page_counter {
 		// interate the page
 		cur_page_counter++
-		fmt.Printf("Page %d\n", cur_page_counter)
+		fmt.Printf("Start Page %d\n", cur_page_counter)
 		// create temp url for the page of intrest in this iteration
 		search_url := "https://librivox.org/search?primary_key=1&search_category=language&search_page=" + strconv.FormatInt(int64(cur_page_counter), 10) + "&search_form=get_results"
 		
@@ -126,7 +126,7 @@ func main() {
 			// fmt.Println("\t...Complete")
 		}
 
-		fmt.Printf("Complete %d\n", cur_page_counter)
+		fmt.Printf("Complete Page %d\n", cur_page_counter)
 	}
 
 	// err := chromedp.Shutdown(ctxt)
