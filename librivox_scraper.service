@@ -9,7 +9,7 @@ Restart=always
 RestartSec=1
 User=pi
 WorkingDirectory=/media/pi/T7/librivox-webscraper
-ExecStart=run
+ExecStart=/media/pi/T7/librivox-webscraper/run
 
 [Install]
 WantedBy=multi-user.target
