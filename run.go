@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"bufio"
 	"os"
 	"log"
 	"context"
@@ -26,6 +27,17 @@ type Book struct {
 	Genre string `json:"genre"`
 	Audio_file_count string `json:"audio_file_count"`
 	Audio_download_url string `json:"Audio_download_url"`
+}
+
+func Exists(name string) (bool, error) {
+    _, err := os.Stat(name)
+    if err == nil {
+        return true, nil
+    }
+    if errors.Is(err, os.ErrNotExist) {
+        return false, nil
+    }
+    return false, err
 }
 
 // Downloads a resource for a given URL to given location on disk.
@@ -93,47 +105,108 @@ func main() {
 
 	var nodes []*cdp.Node
 
-	ctxt, cancel := chromedp.NewContext(
-		context.Background(),
-	)
+	opts := []chromedp.ExecAllocatorOption{
+		chromedp.UserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3830.0 Safari/537.36"),
+		chromedp.WindowSize(1920, 1080),
+		chromedp.NoFirstRun,
+		chromedp.NoDefaultBrowserCheck,
+		chromedp.Headless,
+		chromedp.DisableGPU,
+	}
+
+	ctx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+
+	ctxt, cancel := chromedp.NewContext(ctx)
 	// ctxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Create custom directory that ties output to time
 	createDir(outDir)
-	outDir=outDir+"/"+time.Now().Format("2006-01-02-15:04:05")
-	createDir(outDir)
+	// outDir=outDir+"/"+time.Now().Format("2006-01-02-15:04:05")
+	// createDir(outDir)
 
-	// Collect book detail view url's on each of the search pages
-	for cur_page_counter <= max_page_counter {
-		time.Sleep(2)
-		// interate the page
-		cur_page_counter++
-		fmt.Printf("Start Page %d\n", cur_page_counter)
-		// create temp url for the page of intrest in this iteration
-		search_url := "https://librivox.org/search?primary_key=1&search_category=language&search_page=" + strconv.FormatInt(int64(cur_page_counter), 10) + "&search_form=get_results"
-		
-		// Scrape all book open buttons on this page.
-		err := chromedp.Run(ctxt, collectBookUrls(search_url, &nodes))
-		if err != nil {
-			fmt.Println(err)
+	var book_url_path = outDir+"/"+"book_url.txt"
+	var state_path = outDir+"/"+"current_row.txt"
+	var book_url_exists, _ = Exists(book_url_path)
+
+
+	if (book_url_exists == false ) {
+		book_url_file, _ := os.Create(book_url_path)
+		state_file, _ := os.Create(state_path)
+
+		state_file.WriteString("0")
+
+		// Collect book detail view url's on each of the search pages
+		for cur_page_counter <= max_page_counter {
+			time.Sleep(2)
+			// interate the page
+			cur_page_counter++
+			fmt.Printf("Start Page %d\n", cur_page_counter)
+			// create temp url for the page of intrest in this iteration
+			search_url := "https://librivox.org/search?primary_key=1&search_category=language&search_page=" + strconv.FormatInt(int64(cur_page_counter), 10) + "&search_form=get_results"
+			
+			// Scrape all book open buttons on this page.
+			err := chromedp.Run(ctxt, collectBookUrls(search_url, &nodes))
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			// Collect each href for the scaped button
+			for i, n := range nodes {
+				book_pages = append(book_pages, n.AttributeValue("href"))
+				fmt.Printf("Book: %d\t", i)
+				book_url_file.WriteString(n.AttributeValue("href")+"\n")
+				// fmt.Println("\t...Complete")
+			}
+
+			fmt.Printf("Complete Page %d\n", cur_page_counter)
+			break
 		}
-
-		// Collect each href for the scaped button
-		for i, n := range nodes {
-			book_pages = append(book_pages, n.AttributeValue("href"))
-			fmt.Printf("Book: %d\t", i)
-			time.Sleep(5)
-			scrapeBook(n.AttributeValue("href"), outDir, ctxt)
-			// fmt.Println("\t...Complete")
-		}
-
-		fmt.Printf("Complete Page %d\n", cur_page_counter)
+		state_file.Close()
+		book_url_file.Close()
 	}
+
+	book_url_file, _ := os.Open(book_url_path)
+	book_url_scanner := bufio.NewScanner(book_url_file)
+
+	state_val_string, _ := os.ReadFile(state_path)
+	state_val, _ := strconv.Atoi(string(state_val_string))
+	total_lines := 0
+	for book_url_scanner.Scan() {
+		total_lines++
+	}
+	book_url_file.Close()
+	
+
+	var curr_row = 0
+	var scrape_start = false
+
+	book_url_file, _ = os.Open(book_url_path)
+	book_url_scanner = bufio.NewScanner(book_url_file)
+
+	for book_url_scanner.Scan() {
+
+		if (curr_row == state_val) {
+			scrape_start = true
+		}
+
+		if (scrape_start) {
+			fmt.Printf("Book: %d / %d\n", state_val, total_lines)
+			scrapeBook(book_url_scanner.Text(), outDir, ctxt)
+			state_val++
+			state_file, _ := os.Create(state_path)
+			state_file.WriteString(strconv.Itoa(state_val))
+			state_file.Close()
+		}
+		curr_row++
+   }
 
 	// err := chromedp.Shutdown(ctxt)
 
 	// err = chromedp.Wait()
+	fmt.Println("Complete")
 }
 
 
