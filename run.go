@@ -92,7 +92,7 @@ func createDir(outputDir string) {
 func main() {
 	outputDirPointer := flag.String("output", "output", "a string")
 	outDir := *outputDirPointer
-
+	
 	fmt.Println("Starting")
 	
 	// tracks the current search page (pagniation on the website)
@@ -162,7 +162,6 @@ func main() {
 			}
 
 			fmt.Printf("Complete Page %d\n", cur_page_counter)
-			break
 		}
 		state_file.Close()
 		book_url_file.Close()
