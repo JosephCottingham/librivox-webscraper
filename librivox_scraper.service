@@ -6,8 +6,8 @@ Type=simple
 Restart=always
 RestartSec=1
 User=pi
-WorkingDirectory=/home/someuser
-ExecStart=/usr/bin/env php /path/to/server.php
+WorkingDirectory=/media/pi/T7/librivox-webscraper
+ExecStart=./run
 
 [Install]
 WantedBy=multi-user.target
