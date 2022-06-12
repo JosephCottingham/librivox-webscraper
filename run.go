@@ -10,7 +10,7 @@ import (
 	"time"
 	"flag"
 	"encoding/json"
-	"math/rand"
+	"math/rand" 
 	"errors"
 	"io"
 	"github.com/chromedp/cdproto/cdp"
@@ -193,7 +193,7 @@ func main() {
 
 		if (scrape_start) {
 			fmt.Printf("Book: %d / %d\n", state_val, total_lines)
-			scrapeBook(book_url_scanner.Text(), outDir, ctxt)
+			scrapeBook(book_url_scanner.Text(), outDir)
 			state_val++
 			state_file, _ := os.Create(state_path)
 			state_file.WriteString(strconv.Itoa(state_val))
@@ -210,7 +210,24 @@ func main() {
 
 
 // Collect book information for each detail page and save it to a file, and save the audio zip.
-func scrapeBook(book_url string, outDir string, ctxt context.Context) {
+func scrapeBook(book_url string, outDir string) {
+	opts := []chromedp.ExecAllocatorOption{
+		chromedp.UserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3830.0 Safari/537.36"),
+		chromedp.WindowSize(1920, 1080),
+		chromedp.NoFirstRun,
+		chromedp.NoDefaultBrowserCheck,
+		chromedp.Headless,
+		chromedp.DisableGPU,
+	}
+
+	ctx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	defer cancel()
+
+
+	ctxt, cancel := chromedp.NewContext(ctx)
+	// ctxt, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
     fmt.Println("Time: ", time.Now().Format("2006-01-02 15:04:05"))
 	// Stores the book
 	b := Book{}
@@ -267,3 +284,4 @@ func collectBookData(url string, title *string, author *string, reader *string, 
 		// chromedp.Text(".listen-download dd:nth-child(2) .book-download-btn", audio_download_url),
 	}
 }
+ 
